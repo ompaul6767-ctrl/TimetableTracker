@@ -11,10 +11,12 @@ import { prisma } from './lib/prisma';
 
 const app = express();
 
+const allowedOrigins = env.CLIENT_URL.split(',').map((o) => o.trim().replace(/\/$/, ''));
+
 // Security & parsing middleware
 app.use(helmet());
 app.use(cors({
-  origin: env.CLIENT_URL,
+  origin: allowedOrigins.length === 1 ? allowedOrigins[0] : allowedOrigins,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
