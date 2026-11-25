@@ -8,18 +8,21 @@ const loginSchema = z.object({
   password: z.string().min(1, 'Password is required'),
 });
 
+const isProd = process.env.NODE_ENV === 'production';
+const refreshCookieOptions = {
+  httpOnly: true,
+  secure: isProd,
+  sameSite: (isProd ? 'none' : 'lax') as 'none' | 'lax',
+  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+};
+
 export const login = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { email, password } = loginSchema.parse(req.body);
     const result = await loginUser(email, password);
 
     // Set refresh token as httpOnly cookie
-    res.cookie('refreshToken', result.refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    });
+    res.cookie('refreshToken', result.refreshToken, refreshCookieOptions);
 
     res.json({
       success: true,
@@ -39,12 +42,7 @@ export const refresh = async (req: Request, res: Response, next: NextFunction): 
     const refreshToken = req.cookies?.refreshToken || req.body?.refreshToken;
     const tokens = await refreshUserTokens(refreshToken);
 
-    res.cookie('refreshToken', tokens.refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
+    res.cookie('refreshToken', tokens.refreshToken, refreshCookieOptions);
 
     res.json({ success: true, data: { accessToken: tokens.accessToken } });
   } catch (error) {
@@ -57,7 +55,11 @@ export const logout = async (req: Request, res: Response, next: NextFunction): P
     const refreshToken = req.cookies?.refreshToken || req.body?.refreshToken;
     await logoutUser(refreshToken);
 
-    res.clearCookie('refreshToken');
+    res.clearCookie('refreshToken', {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: (isProd ? 'none' : 'lax') as 'none' | 'lax',
+    });
     res.json({ success: true, message: 'Logged out successfully' });
   } catch (error) {
     next(error);

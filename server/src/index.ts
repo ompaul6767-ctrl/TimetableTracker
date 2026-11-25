@@ -13,10 +13,27 @@ const app = express();
 
 const allowedOrigins = env.CLIENT_URL.split(',').map((o) => o.trim().replace(/\/$/, ''));
 
+const isOriginAllowed = (origin: string): boolean => {
+  if (allowedOrigins.includes(origin)) return true;
+  // Allow Vercel preview/deployment URLs for any configured *.vercel.app origin
+  return allowedOrigins.some((allowed) => {
+    const match = allowed.match(/^https:\/\/([a-z0-9-]+)\.vercel\.app$/i);
+    if (!match) return false;
+    const projectPrefix = match[1];
+    return new RegExp(`^https://${projectPrefix}(-[a-z0-9-]+)?\\.vercel\\.app$`, 'i').test(origin);
+  });
+};
+
 // Security & parsing middleware
 app.use(helmet());
 app.use(cors({
-  origin: allowedOrigins.length === 1 ? allowedOrigins[0] : allowedOrigins,
+  origin: (origin, callback) => {
+    if (!origin || isOriginAllowed(origin)) {
+      callback(null, true);
+    } else {
+      callback(null, false);
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
