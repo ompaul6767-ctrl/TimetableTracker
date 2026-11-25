@@ -1,0 +1,42 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+  
+  body {
+    font-family: 'Inter', 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+    background-color: #F7F9FC;
+    color: #1A2B5F;
+    margin: 0;
+    padding: 0;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  :root {
+    --color-brand-blue: #1D6FE2;
+    --color-brand-navy: #1A2B5F;
+    --color-auth-bg: #EBF0FA;
+    --color-canvas: #F7F9FC;
+    --color-input-fill: #EFF4FB;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-[#1D6FE2] hover:bg-[#155BC0] text-white font-semibold rounded-full px-6 py-2.5 transition-colors duration-200 w-full;
+  }
+
+  .input-field {
+    @apply bg-[#EFF4FB] border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#1D6FE2]/30 focus:border-[#1D6FE2] transition-all duration-200 w-full;
+  }
+
+  .module-card {
+    @apply rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer border border-slate-100 hover:scale-[1.02];
+    background: linear-gradient(180deg, #C7D4F5 0%, #E4EBFC 55%, #FFFFFF 100%);
+  }
+}

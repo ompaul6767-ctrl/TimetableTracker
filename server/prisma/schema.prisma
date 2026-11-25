@@ -1,0 +1,548 @@
+// This is your Prisma schema file
+// Learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum UserRole {
+  ADMIN
+  COORDINATOR
+  FACULTY
+}
+
+enum SlotType {
+  LECTURE
+  LUNCH
+  RECESS
+}
+
+enum SubjectType {
+  THEORY
+  PRACTICAL
+  BOTH
+}
+
+enum AvailabilityStatus {
+  AVAILABLE
+  UNAVAILABLE
+}
+
+enum SlotPreference {
+  PREFERRED
+  NEUTRAL
+  AVOID
+}
+
+enum TimetableStatus {
+  DRAFT
+  GENERATED
+  PUBLISHED
+  ARCHIVED
+}
+
+enum ConflictType {
+  FACULTY_CLASH
+  ROOM_CLASH
+  LAB_CLASH
+  DIVISION_CLASH
+  AVAILABILITY_VIOLATION
+  WORKLOAD_EXCEEDED
+  CAPACITY_EXCEEDED
+}
+
+enum ConflictSeverity {
+  ERROR
+  WARNING
+}
+
+enum JobStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum Day {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+}
+
+enum SemesterType {
+  ODD
+  EVEN
+}
+
+enum NotificationType {
+  INFO
+  WARNING
+  ERROR
+  SUCCESS
+}
+
+// ============================================================
+// 1. IDENTITY
+// ============================================================
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  role         UserRole
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  refreshTokens          RefreshToken[]
+  coordinatorDepartments CoordinatorDepartment[]
+  faculty                Faculty?
+  auditLogs              AuditLog[]
+  notifications          Notification[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String   @map("user_id")
+  expiresAt DateTime @map("expires_at")
+  isRevoked Boolean  @default(false) @map("is_revoked")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+model CoordinatorDepartment {
+  id           String   @id @default(uuid())
+  userId       String   @map("user_id")
+  departmentId String   @map("department_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, departmentId])
+  @@map("coordinator_departments")
+}
+
+// ============================================================
+// 2. ORGANISATION
+// ============================================================
+
+model Department {
+  id        String   @id @default(uuid())
+  name      String
+  code      String   @unique
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  settings               DepartmentSettings?
+  coordinatorDepartments CoordinatorDepartment[]
+  faculty                Faculty[]
+  subjects               Subject[]
+  divisions              Division[]
+  timetables             Timetable[]
+  academicTerms          AcademicTerm[]
+
+  @@map("departments")
+}
+
+model DepartmentSettings {
+  id                     String   @id @default(uuid())
+  departmentId           String   @unique @map("department_id")
+  workingDays            Day[]    @map("working_days")
+  minStudentDailyHours   Int      @default(4) @map("min_student_daily_hours")
+  maxStudentDailyHours   Int      @default(5) @map("max_student_daily_hours")
+  practicalBlockSlots    Int      @default(2) @map("practical_block_slots")
+  availabilityDeadlineDays Int    @default(3) @map("availability_deadline_days")
+  createdAt              DateTime @default(now()) @map("created_at")
+  updatedAt              DateTime @updatedAt @map("updated_at")
+
+  department Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+
+  @@map("department_settings")
+}
+
+model AcademicTerm {
+  id           String       @id @default(uuid())
+  departmentId String       @map("department_id")
+  year         String       // e.g. "2026-27"
+  semester     SemesterType
+  isCurrent    Boolean      @default(false) @map("is_current")
+  startDate    DateTime?    @map("start_date")
+  endDate      DateTime?    @map("end_date")
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+
+  department         Department          @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  timetables         Timetable[]
+  teachingAssignments TeachingAssignment[]
+
+  @@map("academic_terms")
+}
+
+// ============================================================
+// 3. MASTER DATA
+// ============================================================
+
+model Faculty {
+  id              String   @id @default(uuid())
+  userId          String?  @unique @map("user_id")
+  departmentId    String   @map("department_id")
+  employeeCode    String?  @unique @map("employee_code")
+  firstName       String   @map("first_name")
+  lastName        String   @map("last_name")
+  email           String   @unique
+  phone           String?
+  designation     String?
+  maxDailyHours   Int      @default(6) @map("max_daily_hours")
+  maxWeeklyHours  Int      @default(24) @map("max_weekly_hours")
+  isActive        Boolean  @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  user                User?                @relation(fields: [userId], references: [id], onDelete: SetNull)
+  department          Department           @relation(fields: [departmentId], references: [id])
+  teachingAssignments TeachingAssignment[]
+  availability        FacultyAvailability[]
+  preferences         FacultyPreference[]
+  timetableEntries    TimetableEntry[]
+
+  @@map("faculty")
+}
+
+model Subject {
+  id               String      @id @default(uuid())
+  departmentId     String      @map("department_id")
+  code             String      @unique
+  name             String
+  type             SubjectType
+  theoryHoursPerWeek Int?      @map("theory_hours_per_week")
+  practicalHoursPerWeek Int?   @map("practical_hours_per_week")
+  semester         Int
+  isActive         Boolean     @default(true) @map("is_active")
+  createdAt        DateTime    @default(now()) @map("created_at")
+  updatedAt        DateTime    @updatedAt @map("updated_at")
+
+  department          Department           @relation(fields: [departmentId], references: [id])
+  teachingAssignments TeachingAssignment[]
+  timetableEntries    TimetableEntry[]
+
+  @@map("subjects")
+}
+
+model Classroom {
+  id           String   @id @default(uuid())
+  name         String
+  code         String   @unique
+  capacity     Int
+  building     String?
+  floor        Int?
+  hasProjector Boolean  @default(false) @map("has_projector")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  timetableEntries TimetableEntry[]
+  resourceBookings ResourceBooking[]
+
+  @@map("classrooms")
+}
+
+model Laboratory {
+  id        String   @id @default(uuid())
+  name      String
+  code      String   @unique
+  capacity  Int
+  building  String?
+  floor     Int?
+  labType   String?  @map("lab_type")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  timetableEntries TimetableEntry[]
+  resourceBookings ResourceBooking[]
+
+  @@map("laboratories")
+}
+
+model Division {
+  id           String   @id @default(uuid())
+  departmentId String   @map("department_id")
+  name         String   // e.g., "A", "B", "C"
+  year         Int      // 1, 2, 3, 4
+  semester     Int      // 1-8
+  strength     Int      @default(60)
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  department          Department           @relation(fields: [departmentId], references: [id])
+  batches             Batch[]
+  teachingAssignments TeachingAssignment[]
+  timetableEntries    TimetableEntry[]
+
+  @@unique([departmentId, name, semester])
+  @@map("divisions")
+}
+
+model Batch {
+  id         String   @id @default(uuid())
+  divisionId String   @map("division_id")
+  name       String   // E1, E2, E3
+  strength   Int      @default(20)
+  isActive   Boolean  @default(true) @map("is_active")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  division         Division          @relation(fields: [divisionId], references: [id], onDelete: Cascade)
+  timetableEntries TimetableEntry[]
+
+  @@unique([divisionId, name])
+  @@map("batches")
+}
+
+model TimeSlot {
+  id         String   @id @default(uuid())
+  slotNumber Int      @map("slot_number")
+  day        Day
+  startTime  String   @map("start_time") // "09:00"
+  endTime    String   @map("end_time")   // "10:00"
+  type       SlotType
+  isActive   Boolean  @default(true) @map("is_active")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  timetableEntries  TimetableEntry[]
+  facultyAvailability FacultyAvailability[]
+  facultyPreferences  FacultyPreference[]
+
+  @@unique([day, slotNumber])
+  @@map("time_slots")
+}
+
+// ============================================================
+// 4. PLANNING INPUTS
+// ============================================================
+
+model TeachingAssignment {
+  id           String   @id @default(uuid())
+  termId       String   @map("term_id")
+  facultyId    String   @map("faculty_id")
+  subjectId    String   @map("subject_id")
+  divisionId   String   @map("division_id")
+  batchId      String?  @map("batch_id") // null for theory, set for practicals
+  hoursPerWeek Int      @map("hours_per_week")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  term     AcademicTerm @relation(fields: [termId], references: [id])
+  faculty  Faculty      @relation(fields: [facultyId], references: [id])
+  subject  Subject      @relation(fields: [subjectId], references: [id])
+  division Division     @relation(fields: [divisionId], references: [id])
+
+  @@map("teaching_assignments")
+}
+
+model FacultyAvailability {
+  id         String             @id @default(uuid())
+  facultyId  String             @map("faculty_id")
+  timeSlotId String             @map("time_slot_id")
+  weekDate   DateTime           @map("week_date") // Monday of the week
+  status     AvailabilityStatus
+  reason     String?
+  createdAt  DateTime           @default(now()) @map("created_at")
+  updatedAt  DateTime           @updatedAt @map("updated_at")
+
+  faculty  Faculty  @relation(fields: [facultyId], references: [id], onDelete: Cascade)
+  timeSlot TimeSlot @relation(fields: [timeSlotId], references: [id], onDelete: Cascade)
+
+  @@unique([facultyId, timeSlotId, weekDate])
+  @@map("faculty_availability")
+}
+
+model FacultyPreference {
+  id         String         @id @default(uuid())
+  facultyId  String         @map("faculty_id")
+  timeSlotId String         @map("time_slot_id")
+  preference SlotPreference
+  createdAt  DateTime       @default(now()) @map("created_at")
+  updatedAt  DateTime       @updatedAt @map("updated_at")
+
+  faculty  Faculty  @relation(fields: [facultyId], references: [id], onDelete: Cascade)
+  timeSlot TimeSlot @relation(fields: [timeSlotId], references: [id], onDelete: Cascade)
+
+  @@unique([facultyId, timeSlotId])
+  @@map("faculty_preferences")
+}
+
+// ============================================================
+// 5. TIMETABLE
+// ============================================================
+
+model Timetable {
+  id           String          @id @default(uuid())
+  departmentId String          @map("department_id")
+  termId       String          @map("term_id")
+  name         String
+  status       TimetableStatus @default(DRAFT)
+  version      Int             @default(1)
+  publishedAt  DateTime?       @map("published_at")
+  archivedAt   DateTime?       @map("archived_at")
+  createdBy    String?         @map("created_by")
+  createdAt    DateTime        @default(now()) @map("created_at")
+  updatedAt    DateTime        @updatedAt @map("updated_at")
+
+  department      Department        @relation(fields: [departmentId], references: [id])
+  term            AcademicTerm      @relation(fields: [termId], references: [id])
+  entries         TimetableEntry[]
+  conflicts       TimetableConflict[]
+  generationJobs  GenerationJob[]
+  exportLogs      ExportLog[]
+
+  @@map("timetables")
+}
+
+model TimetableEntry {
+  id           String   @id @default(uuid())
+  timetableId  String   @map("timetable_id")
+  timeSlotId   String   @map("time_slot_id")
+  facultyId    String   @map("faculty_id")
+  subjectId    String   @map("subject_id")
+  divisionId   String   @map("division_id")
+  batchId      String?  @map("batch_id")
+  classroomId  String?  @map("classroom_id")
+  laboratoryId String?  @map("laboratory_id")
+  isLocked     Boolean  @default(false) @map("is_locked")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  timetable  Timetable  @relation(fields: [timetableId], references: [id], onDelete: Cascade)
+  timeSlot   TimeSlot   @relation(fields: [timeSlotId], references: [id])
+  faculty    Faculty    @relation(fields: [facultyId], references: [id])
+  subject    Subject    @relation(fields: [subjectId], references: [id])
+  division   Division   @relation(fields: [divisionId], references: [id])
+  batch      Batch?     @relation(fields: [batchId], references: [id])
+  classroom  Classroom? @relation(fields: [classroomId], references: [id])
+  laboratory Laboratory? @relation(fields: [laboratoryId], references: [id])
+
+  resourceBookings ResourceBooking[]
+
+  @@map("timetable_entries")
+}
+
+model ResourceBooking {
+  id               String   @id @default(uuid())
+  timetableEntryId String   @map("timetable_entry_id")
+  classroomId      String?  @map("classroom_id")
+  laboratoryId     String?  @map("laboratory_id")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  timetableEntry TimetableEntry @relation(fields: [timetableEntryId], references: [id], onDelete: Cascade)
+  classroom      Classroom?     @relation(fields: [classroomId], references: [id])
+  laboratory     Laboratory?    @relation(fields: [laboratoryId], references: [id])
+
+  @@map("resource_bookings")
+}
+
+model GenerationJob {
+  id          String    @id @default(uuid())
+  timetableId String    @map("timetable_id")
+  status      JobStatus @default(PENDING)
+  startedAt   DateTime? @map("started_at")
+  completedAt DateTime? @map("completed_at")
+  errorMessage String?  @map("error_message")
+  metadata    Json?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  timetable Timetable @relation(fields: [timetableId], references: [id], onDelete: Cascade)
+
+  @@map("generation_jobs")
+}
+
+model TimetableConflict {
+  id          String           @id @default(uuid())
+  timetableId String           @map("timetable_id")
+  type        ConflictType
+  severity    ConflictSeverity
+  description String
+  metadata    Json?
+  isResolved  Boolean          @default(false) @map("is_resolved")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+
+  timetable Timetable @relation(fields: [timetableId], references: [id], onDelete: Cascade)
+
+  @@map("timetable_conflicts")
+}
+
+// ============================================================
+// 6. PLATFORM
+// ============================================================
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String           @map("user_id")
+  type      NotificationType
+  title     String
+  message   String
+  isRead    Boolean          @default(false) @map("is_read")
+  metadata  Json?
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String?  @map("user_id")
+  action     String
+  entity     String
+  entityId   String?  @map("entity_id")
+  oldValues  Json?    @map("old_values")
+  newValues  Json?    @map("new_values")
+  ipAddress  String?  @map("ip_address")
+  userAgent  String?  @map("user_agent")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("audit_logs")
+}
+
+model ExportLog {
+  id          String   @id @default(uuid())
+  timetableId String   @map("timetable_id")
+  exportType  String   @map("export_type") // PDF, EXCEL
+  status      String   // SUCCESS, FAILED
+  fileUrl     String?  @map("file_url")
+  createdBy   String?  @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  timetable Timetable @relation(fields: [timetableId], references: [id], onDelete: Cascade)
+
+  @@map("export_logs")
+}
