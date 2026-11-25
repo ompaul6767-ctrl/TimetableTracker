@@ -1,11 +1,12 @@
 import { Routes, Route, Navigate, useLocation, Link } from 'react-router-dom'
 import { useState } from 'react'
-import { Table2, Calendar, Star, BarChart3, Menu, LayoutGrid } from 'lucide-react'
+import { Table2, Calendar, Star, BarChart3, Menu, LayoutGrid, UserRound } from 'lucide-react'
 import InstitutionalHeader from '../../components/layout/InstitutionalHeader'
 import Sidebar from '../../components/layout/Sidebar'
 import ModuleLauncherGrid from '../../components/layout/ModuleLauncherGrid'
 import PlaceholderCard from '../../components/ui/PlaceholderCard'
 import type { ModuleCard } from '../../components/layout/ModuleLauncherGrid'
+import FacultyProfilePage from './FacultyProfilePage'
 
 const MODULES: ModuleCard[] = [
   { id: 'my-timetable', title: 'My Timetable', icon: Table2, path: 'my-timetable' },
@@ -14,7 +15,10 @@ const MODULES: ModuleCard[] = [
   { id: 'my-workload', title: 'My Workload', icon: BarChart3, path: 'my-workload' },
 ]
 
-const SIDEBAR_ITEMS = MODULES.map(m => ({ id: m.id, label: m.title, icon: m.icon, path: m.path }))
+const SIDEBAR_ITEMS = [
+  ...MODULES.map(m => ({ id: m.id, label: m.title, icon: m.icon, path: m.path })),
+  { id: 'profile', label: 'Profile', icon: UserRound, path: 'profile' },
+]
 
 export default function FacultyPortal() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -65,6 +69,7 @@ export default function FacultyPortal() {
 
           <Routes>
             <Route index element={<ModuleLauncherGrid modules={MODULES} basePath="/faculty" />} />
+            <Route path="profile" element={<FacultyProfilePage />} />
             <Route path="my-timetable" element={<PlaceholderCard title="My Timetable" icon={Table2} description="View your published weekly timetable with class schedule and room details." />} />
             <Route path="my-availability" element={<PlaceholderCard title="My Availability" icon={Calendar} description="Submit your availability (Available/Unavailable) for each time slot by week." />} />
             <Route path="preferred-slots" element={<PlaceholderCard title="Preferred Slots" icon={Star} description="Set your slot preferences (Preferred/Neutral/Avoid) for timetable optimization." />} />

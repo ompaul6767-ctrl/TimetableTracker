@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Mail, Lock, Eye, EyeOff, Calendar, Users, AlertTriangle, FileText } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { api } from '../../lib/api'
@@ -161,6 +161,13 @@ export default function LoginPage() {
               )}
             </button>
           </form>
+
+          <p className="mt-3 text-center text-xs text-slate-500">
+            New faculty member?{' '}
+            <Link to="/faculty/register" className="rounded-sm font-medium text-[#1D6FE2] hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1D6FE2] focus-visible:ring-offset-2">
+              Register here
+            </Link>
+          </p>
 
           <div className="mt-6 flex items-center justify-between text-xs text-slate-400">
             <button type="button" className="hover:text-[#1D6FE2] transition-colors">Help / Support</button>

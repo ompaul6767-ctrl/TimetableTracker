@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './contexts/AuthContext'
 import LoginPage from './pages/auth/LoginPage'
+import FacultyRegistrationPage from './pages/faculty/FacultyRegistrationPage'
 import CoordinatorPortal from './pages/coordinator/CoordinatorPortal'
 import FacultyPortal from './pages/faculty/FacultyPortal'
 
@@ -18,6 +19,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/faculty/register" element={<FacultyRegistrationPage />} />
         <Route
           path="/login"
           element={
