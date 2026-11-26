@@ -147,9 +147,9 @@ export default function InstitutionalHeader() {
               <span className="w-1.5 h-1.5 bg-[#16A34A] rounded-full" />
               Active
             </span>
-            {user.faculty?.employeeCode && (
+            {user.faculty?.prn && (
               <span className="text-xs font-medium text-[#1D6FE2] bg-[#EBF0FA] px-2 py-0.5 rounded-md hidden sm:inline">
-                {user.faculty.employeeCode}
+                {user.faculty.prn}
               </span>
             )}
             <span className="text-xs text-slate-500 hidden sm:block">

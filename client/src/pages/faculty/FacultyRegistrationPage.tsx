@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState, type InputHTMLAttributes } from 'react'
+import { api } from '../../lib/api'
+import { useState, type InputHTMLAttributes } from 'react'
 import { useForm, type FieldErrors, type UseFormRegisterReturn } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft,
   CalendarCheck,
@@ -150,10 +151,10 @@ function RegistrationPassword({ id, label, registration, error, hint }: Registra
 }
 
 export default function FacultyRegistrationPage() {
-  const [isPreviewLoading, setIsPreviewLoading] = useState(false)
-  const [showPreviewNotice, setShowPreviewNotice] = useState(false)
-  const [resetVersion, setResetVersion] = useState(0)
-  const submitTimerRef = useRef<number | null>(null)
+const [isLoading, setIsLoading] = useState(false)
+const [serverError, setServerError] = useState('')
+const [resetVersion, setResetVersion] = useState(0)
+const navigate = useNavigate()
 
   const {
     register,
@@ -172,19 +173,31 @@ export default function FacultyRegistrationPage() {
 
   const password = watch('password')
 
-  useEffect(() => () => {
-    if (submitTimerRef.current !== null) window.clearTimeout(submitTimerRef.current)
-  }, [])
+  const handleValidSubmit = async (values: FacultyRegistrationValues) => {
+  setServerError('')
+  setIsLoading(true)
 
-  const handleValidSubmit = () => {
-    setShowPreviewNotice(false)
-    setIsPreviewLoading(true)
-    submitTimerRef.current = window.setTimeout(() => {
-      submitTimerRef.current = null
-      setIsPreviewLoading(false)
-      setShowPreviewNotice(true)
-    }, 700)
+  try {
+    await api.post('/auth/register', {
+      fullName: values.fullName,
+      prn: values.prn,
+      email: values.email,
+      mobile: values.mobile,
+      password: values.password,
+    })
+
+    reset(defaultValues)
+    navigate('/login')
+  } catch (error: any) {
+    setServerError(
+      error.response?.data?.error ||
+      error.response?.data?.message ||
+      'Registration failed. Please try again.'
+    )
+  } finally {
+    setIsLoading(false)
   }
+}
 
   const handleInvalidSubmit = (formErrors: FieldErrors<FacultyRegistrationValues>) => {
     const firstError = Object.keys(formErrors)[0] as keyof FacultyRegistrationValues | undefined
@@ -200,15 +213,11 @@ export default function FacultyRegistrationPage() {
   }
 
   const clearForm = () => {
-    if (submitTimerRef.current !== null) {
-      window.clearTimeout(submitTimerRef.current)
-      submitTimerRef.current = null
-    }
-    setIsPreviewLoading(false)
-    setShowPreviewNotice(false)
-    reset(defaultValues)
-    setResetVersion((version) => version + 1)
-  }
+  setIsLoading(false)
+  setServerError('')
+  reset(defaultValues)
+  setResetVersion((version) => version + 1)
+}
 
   const passwordStrength = (() => {
     if (!password) return 'Use 8+ characters with uppercase, lowercase, a number, and a special character.'
@@ -293,6 +302,14 @@ export default function FacultyRegistrationPage() {
           </Link>
 
           <form onSubmit={handleSubmit(handleValidSubmit, handleInvalidSubmit)} noValidate className="space-y-4">
+          {serverError && (
+            <div
+              role="alert"
+              className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+            >
+              {serverError}
+            </div>
+        )}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <RegistrationInput
                 id="fullName"
@@ -353,13 +370,13 @@ export default function FacultyRegistrationPage() {
 
             <button
               type="submit"
-              disabled={isPreviewLoading}
+              disabled={isLoading}
               className="mt-2 flex w-full items-center justify-center gap-2 rounded-full bg-[#1D6FE2] py-3 font-semibold text-white transition-colors duration-200 hover:bg-[#155BC0] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1D6FE2] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isPreviewLoading ? (
+              {isLoading ? (
                 <>
                   <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" aria-hidden="true" />
-                  Checking details...
+                  Registering...
                 </>
               ) : (
                 'REGISTER'
@@ -385,13 +402,6 @@ export default function FacultyRegistrationPage() {
               Clear Form
             </button>
           </div>
-
-          {showPreviewNotice && (
-            <div role="status" aria-live="polite" className="mt-5 flex items-start gap-2 rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm text-[#1A2B5F]">
-              <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#1D6FE2]" aria-hidden="true" />
-              <p><span className="font-semibold">UI preview only:</span> registration is not connected to the server yet.</p>
-            </div>
-          )}
         </main>
       </div>
     </div>

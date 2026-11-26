@@ -4,19 +4,27 @@ export interface User {
   id: string
   email: string
   role: 'ADMIN' | 'COORDINATOR' | 'FACULTY'
+  isActive?: boolean
+  createdAt?: string
   faculty?: {
     id: string
+    prn: string
     firstName: string
     lastName: string
-    employeeCode?: string
     designation?: string
-    department?: { name: string; code: string }
+    department?: {
+      name: string
+      code: string
+    }
   }
   coordinatorDepartments?: Array<{
-    department: { id: string; name: string; code: string }
+    department: {
+      id: string
+      name: string
+      code: string
+    }
   }>
 }
-
 interface AuthContextType {
   user: User | null
   accessToken: string | null

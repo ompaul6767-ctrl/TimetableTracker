@@ -204,21 +204,20 @@ model AcademicTerm {
 // ============================================================
 
 model Faculty {
-  id              String   @id @default(uuid())
-  userId          String?  @unique @map("user_id")
-  departmentId    String   @map("department_id")
-  employeeCode    String?  @unique @map("employee_code")
-  firstName       String   @map("first_name")
-  lastName        String   @map("last_name")
-  email           String   @unique
-  phone           String?
-  designation     String?
-  maxDailyHours   Int      @default(6) @map("max_daily_hours")
-  maxWeeklyHours  Int      @default(24) @map("max_weekly_hours")
-  isActive        Boolean  @default(true) @map("is_active")
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
-
+  id           String   @id @default(uuid())
+  userId       String?  @unique @map("user_id")
+  departmentId String   @map("department_id")
+  prn          String   @unique
+  firstName    String   @map("first_name")
+  lastName     String   @map("last_name")
+  email        String   @unique
+  phone        String?
+  designation  String?
+  maxDailyHours  Int    @default(6) @map("max_daily_hours")
+  maxWeeklyHours Int   @default(24) @map("max_weekly_hours")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
   user                User?                @relation(fields: [userId], references: [id], onDelete: SetNull)
   department          Department           @relation(fields: [departmentId], references: [id])
   teachingAssignments TeachingAssignment[]
